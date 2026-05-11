@@ -278,6 +278,7 @@ export type DesktopRuntime = {
   console(): DesktopConsoleResult;
   eval(input: DesktopEvalInput): Promise<DesktopEvalResult>;
   exportPdf(input: DesktopExportPdfInput): Promise<DesktopExportPdfResult>;
+  hide(): void;
   screenshot(input: DesktopScreenshotInput): Promise<DesktopScreenshotResult>;
   show(): void;
   status(): DesktopStatusSnapshot;
@@ -1390,8 +1391,14 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
       await writeFile(outputPath, image.toPNG());
       return { path: outputPath };
     },
+    hide() {
+      if (!window.isDestroyed() && window.isVisible()) {
+        window.hide();
+      }
+    },
     show() {
       if (!window.isDestroyed()) {
+        if (window.isMinimized()) window.restore();
         window.show();
         window.focus();
       }

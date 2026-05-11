@@ -40,6 +40,7 @@ import {
   exportDiagnosticsToFile,
   registerDesktopDiagnosticsIpc,
 } from "./diagnostics.js";
+import { createTray, type TrayController } from "./tray.js";
 
 // Re-export pure URL-policy helpers so the packaged workspace's
 // vitest can pin their behaviour without spinning up a full Electron
@@ -343,6 +344,7 @@ export async function runDesktopMain(
   let updateScheduler: DesktopUpdaterScheduler | null = null;
   let removeDiagnosticsIpc: () => void = () => undefined;
   let ipcServer: JsonIpcServerHandle | null = null;
+  let tray: TrayController | null = null;
   let shuttingDown = false;
 
   async function shutdown(): Promise<void> {
@@ -354,6 +356,8 @@ export async function runDesktopMain(
     updateScheduler?.stop("shutdown");
     disposeMenu();
     removeDiagnosticsIpc();
+    tray?.close();
+    tray = null;
     await ipcServer?.close().catch(() => undefined);
     await desktop?.close().catch(() => undefined);
     app.quit();
@@ -428,13 +432,17 @@ export async function runDesktopMain(
     },
   });
 
-  app.on("before-quit", (event) => {
-    if (shuttingDown) return;
-    event.preventDefault();
-    shutdownAndExit();
+  tray = createTray(runtime, {
+    onShowWindow: () => desktop.show(),
+    onHideWindow: () => desktop.hide(),
+    onQuit: () => shutdownAndExit(),
   });
 
   app.on("window-all-closed", () => {
+    // Tray keeps the menu-bar app alive even when the main window is closed/hidden.
+    // On macOS the main window's close handler hides instead of destroying, so this
+    // event normally won't fire there; on other platforms we still want full quit.
+    if (process.platform === "darwin" && tray != null) return;
     shutdownAndExit();
   });
 
