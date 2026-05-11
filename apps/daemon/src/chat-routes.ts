@@ -43,14 +43,14 @@ export function registerChatRoutes(app: Express, ctx: RegisterChatRoutesDeps) {
     if (run.assistantMessageId) {
       void design.runs
         .wait(run)
-        .then((finalStatus) => {
+        .then((finalStatus: { status: string }) => {
           db.prepare(
             `UPDATE messages
                 SET run_status = ?, ended_at = COALESCE(ended_at, ?)
               WHERE id = ? AND run_status IN ('queued', 'running')`,
           ).run(finalStatus.status, Date.now(), run.assistantMessageId);
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.warn('[runs] message reconciliation failed', err);
         });
     }
