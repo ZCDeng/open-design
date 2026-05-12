@@ -11175,9 +11175,11 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
 }
 .present-exit {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 20px);
+  right: calc(env(safe-area-inset-right, 0px) + 20px);
   z-index: 1001;
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
   font-size: 12px;
   background: rgba(255, 255, 255, 0.92);
