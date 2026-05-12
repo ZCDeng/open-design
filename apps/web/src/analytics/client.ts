@@ -20,6 +20,15 @@ interface AnalyticsContext {
 
 let client: PostHog | null = null;
 let initPromise: Promise<PostHog | null> | null = null;
+let resolvedAnonymousId: string | null = null;
+
+// Returns the installationId the daemon stamped on /api/analytics/config
+// after the user opted in via Privacy → "Share usage data". The provider
+// uses this in preference to its locally-generated UUID so PostHog,
+// Langfuse, and any future sink share a single anonymous identity.
+export function getResolvedAnonymousId(): string | null {
+  return resolvedAnonymousId;
+}
 
 export async function getAnalyticsClient(
   context: AnalyticsContext,
@@ -32,13 +41,19 @@ export async function getAnalyticsClient(
       if (!res.ok) return null;
       const cfg = (await res.json()) as AnalyticsConfigResponse;
       if (!cfg.enabled || !cfg.key || !cfg.host) return null;
+      const distinctId =
+        (typeof cfg.installationId === 'string' && cfg.installationId) ||
+        context.anonymousId;
+      resolvedAnonymousId = distinctId;
       const mod = await import('posthog-js');
       const posthog = mod.default;
       posthog.init(cfg.key, {
         api_host: cfg.host,
-        // Identify by our own anonymous_id so daemon-side captures (which
-        // use the same id as distinctId) land on the same person record.
-        bootstrap: { distinctID: context.anonymousId },
+        // Identify by installationId when present so daemon-side captures
+        // (which also key off installationId via the analytics context
+        // header) land on the same person record. Falls back to the
+        // locally-generated UUID for the legacy / pre-consent path.
+        bootstrap: { distinctID: distinctId },
         // Disable session recording and autocapture; this integration is
         // event-based only. A future spec can opt in selectively.
         disable_session_recording: true,
@@ -54,7 +69,7 @@ export async function getAnalyticsClient(
             client_type: context.clientType,
             locale: context.locale,
             session_id: context.sessionId,
-            anonymous_id: context.anonymousId,
+            anonymous_id: distinctId,
           });
         },
       });
@@ -67,6 +82,24 @@ export async function getAnalyticsClient(
     }
   })();
   return initPromise;
+}
+
+// Called from the AnalyticsProvider when the user toggles Privacy →
+// metrics off so events stop flowing immediately, before the next
+// reload re-reads /api/analytics/config. The posthog-js client persists
+// its opt-out flag in localStorage; subsequent capture() calls become
+// no-ops until the user opts back in.
+export function applyConsent(consentGranted: boolean): void {
+  if (!client) return;
+  try {
+    if (consentGranted) {
+      client.opt_in_capturing();
+    } else {
+      client.opt_out_capturing();
+    }
+  } catch {
+    // best-effort — capture should never throw out of this path.
+  }
 }
 
 export function capture(

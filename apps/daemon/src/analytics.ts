@@ -70,9 +70,9 @@ export function readPosthogConfig(
   return { key, host };
 }
 
-// Wire response for GET /api/analytics/config. Returning enabled=false lets
-// the web client short-circuit without trying to talk to PostHog at all when
-// the daemon has no key.
+// Baseline wire response for GET /api/analytics/config — checks only the
+// env-var gate. The route handler in server.ts further narrows this with
+// the user's telemetry.metrics consent before sending it to the client.
 export function readPublicConfigResponse(
   env: NodeJS.ProcessEnv = process.env,
 ): AnalyticsConfigResponse {

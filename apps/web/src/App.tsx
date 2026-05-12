@@ -205,17 +205,28 @@ export function App() {
 
   // app_launch — fired exactly once per page load. Mounting in App, not the
   // RootLayout, so we capture after the first React tick and the analytics
-  // provider has had a chance to wire its identity.
+  // provider has had a chance to wire its identity. Gated on
+  // `config.telemetry?.metrics` so a freshly-opted-in user gets the event
+  // on their next reload, and a declined user fires nothing.
   const appLaunchFiredRef = useRef(false);
   useEffect(() => {
     if (appLaunchFiredRef.current) return;
+    if (config.telemetry?.metrics !== true) return;
     appLaunchFiredRef.current = true;
     trackAppLaunch(analytics.track, {
       page: 'app',
       launch_source: detectLaunchSource(),
       platform: detectClientType(),
     });
-  }, [analytics.track]);
+  }, [analytics.track, config.telemetry?.metrics]);
+
+  // Propagate the Privacy toggle through to PostHog without a reload —
+  // posthog-js's opt_out_capturing flips a localStorage flag that makes
+  // every subsequent capture() a no-op. When the user opts back in we
+  // call opt_in_capturing to resume.
+  useEffect(() => {
+    analytics.setConsent(config.telemetry?.metrics === true);
+  }, [analytics.setConsent, config.telemetry?.metrics]);
 
   // Sync theme preference to the <html> element so CSS variables pick it up.
   // useLayoutEffect (vs useEffect) fires before the browser paints, so a

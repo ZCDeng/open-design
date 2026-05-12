@@ -30,11 +30,17 @@ export const ANALYTICS_HEADER_LOCALE = 'x-od-analytics-locale';
 export const ANALYTICS_HEADER_REQUEST_ID = 'x-od-analytics-request-id';
 
 // Daemon serves the PostHog public config so the web bundle never embeds the
-// key at build time; loading via /api/analytics/config keeps the same env var
-// (OD_POSTHOG_KEY / OD_POSTHOG_HOST) as the single source of truth and lets
-// the integration short-circuit cleanly when no key is set.
+// key at build time; loading via /api/analytics/config keeps POSTHOG_KEY /
+// POSTHOG_HOST as the single source of truth. The endpoint reports
+// enabled=true only when BOTH a key is present AND the user has consented
+// via Privacy → "Share usage data" (telemetry.metrics).
+//
+// installationId is echoed back so the web client uses the same anonymous
+// id Langfuse already keys off of — one anonymous identity per install,
+// shared between both telemetry sinks. Null when consent is declined.
 export interface AnalyticsConfigResponse {
   enabled: boolean;
   key: string | null;
   host: string | null;
+  installationId?: string | null;
 }

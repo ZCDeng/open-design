@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import { useI18n } from '../i18n';
@@ -17,7 +18,12 @@ import {
   ANALYTICS_HEADER_REQUEST_ID,
   ANALYTICS_HEADER_SESSION_ID,
 } from '@open-design/contracts/analytics';
-import { capture, getAnalyticsClient } from './client';
+import {
+  applyConsent,
+  capture,
+  getAnalyticsClient,
+  getResolvedAnonymousId,
+} from './client';
 import {
   detectClientType,
   getAnonymousId,
@@ -32,6 +38,10 @@ interface AnalyticsContextValue {
     properties: Record<string, unknown>,
     options?: { requestId?: string; insertId?: string },
   ) => void;
+  // Toggle PostHog capture without unmounting the provider. App.tsx calls
+  // this from a useEffect that watches `config.telemetry?.metrics` so a
+  // Privacy toggle takes effect immediately, not on next reload.
+  setConsent: (granted: boolean) => void;
   anonymousId: string;
   sessionId: string;
   newRequestId: () => string;
@@ -81,6 +91,30 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // Once the PostHog client has talked to /api/analytics/config, the
+  // installationId the daemon stamped becomes the canonical anonymous id —
+  // shared with Langfuse. The fetch wrapper below picks this up so daemon
+  // server-side captures end up on the same person record.
+  const [resolvedAnonId, setResolvedAnonId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getAnalyticsClient({
+      anonymousId: identity.anonymousId,
+      sessionId: identity.sessionId,
+      clientType: identity.clientType,
+      locale,
+      appVersion,
+    }).then(() => {
+      if (cancelled) return;
+      const resolved = getResolvedAnonymousId();
+      if (resolved) setResolvedAnonId(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [identity, locale, appVersion]);
+  const effectiveAnonId = resolvedAnonId ?? identity.anonymousId;
+
   // Wrap window.fetch so every /api/* request carries the analytics context
   // for the daemon to mirror result events back with the matching distinct
   // id. Same-origin only, narrowed to /api/* to avoid touching outbound
@@ -89,7 +123,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
     const original = window.fetch;
     const baseHeaders: Record<string, string> = {
-      [ANALYTICS_HEADER_ANONYMOUS_ID]: identity.anonymousId,
+      [ANALYTICS_HEADER_ANONYMOUS_ID]: effectiveAnonId,
       [ANALYTICS_HEADER_SESSION_ID]: identity.sessionId,
       [ANALYTICS_HEADER_CLIENT_TYPE]: identity.clientType,
     };
@@ -109,7 +143,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     return () => {
       window.fetch = original;
     };
-  }, [identity, locale]);
+  }, [identity, locale, effectiveAnonId]);
 
   // Update PostHog's super-properties whenever locale changes so subsequent
   // captures carry the right `locale` field without us threading it through
@@ -189,6 +223,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AnalyticsContextValue>(
     () => ({
       track,
+      setConsent: (granted: boolean) => applyConsent(granted),
       anonymousId: identity.anonymousId,
       sessionId: identity.sessionId,
       newRequestId: () => crypto.randomUUID(),
@@ -207,6 +242,7 @@ export function useAnalytics(): AnalyticsContextValue {
     // null checks.
     return {
       track: () => undefined,
+      setConsent: () => undefined,
       anonymousId: 'unmounted',
       sessionId: 'unmounted',
       newRequestId: () => crypto.randomUUID(),
