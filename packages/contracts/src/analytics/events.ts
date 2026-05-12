@@ -368,7 +368,7 @@ export function projectKindToTracking(
 }
 
 // Code `CreateTab` from apps/web/src/components/NewProjectPanel.tsx:
-//   'prototype' | 'deck' | 'template' | 'image' | 'video' | 'audio' | 'other'
+//   'prototype' | 'live-artifact' | 'deck' | 'template' | 'image' | 'video' | 'audio' | 'other'
 export function createTabToTracking(tab: string): TrackingSourceTab {
   switch (tab) {
     case 'prototype':
@@ -377,6 +377,7 @@ export function createTabToTracking(tab: string): TrackingSourceTab {
       return 'slide_deck';
     case 'template':
       return 'from_template';
+    case 'live-artifact':
     case 'other':
       return 'live_artifact';
     case 'image':
@@ -400,11 +401,15 @@ export function fidelityToTracking(
 }
 
 // Code top-tab from apps/web/src/components/EntryView.tsx:
-//   'designs' | 'examples' | 'design-systems' | 'image-templates' | 'video-templates'
+//   'designs' | 'templates' | 'design-systems' | 'image-templates' | 'video-templates'
+// Note: the entry tab labelled 'Templates' in this branch corresponds to
+// what the CSV calls 'examples' — the surface that was historically the
+// curated examples gallery.
 export function topTabToTracking(tab: string): TrackingTopTabId {
   switch (tab) {
     case 'designs':
       return 'designs';
+    case 'templates':
     case 'examples':
       return 'examples';
     case 'design-systems':

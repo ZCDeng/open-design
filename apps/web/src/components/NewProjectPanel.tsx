@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createTabToTracking,
+  projectKindToTracking,
+} from '@open-design/contracts/analytics';
+import { useAnalytics } from '../analytics/provider';
+import { trackHomeClickCreateButton } from '../analytics/events';
 import type { ConnectorDetail, ImportFolderResponse } from '@open-design/contracts';
 
 // Window.electronAPI is declared globally in apps/web/src/types/electron.d.ts
@@ -135,7 +141,7 @@ interface Props {
   defaultDesignSystemId: string | null;
   templates: ProjectTemplate[];
   promptTemplates: PromptTemplateSummary[];
-  onCreate: (input: CreateInput) => void;
+  onCreate: (input: CreateInput & { requestId?: string }) => void;
   onImportClaudeDesign?: (file: File) => Promise<void> | void;
   // Web fallback: the user types an absolute baseDir into the manual
   // input and the renderer POSTs `/api/import/folder` itself. Browser
@@ -209,6 +215,7 @@ export function NewProjectPanel({
   loading = false,
 }: Props) {
   const t = useT();
+  const analytics = useAnalytics();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
   const [baseDir, setBaseDir] = useState('');
@@ -522,11 +529,29 @@ export function NewProjectPanel({
       inspirationIds: inspirations,
       promptTemplate: promptTemplatePick,
     });
+    // Generate the click→result correlation id here so the home_click and
+    // the eventual project_create_result share request_id.
+    const requestId = analytics.newRequestId();
+    const trackedKind = projectKindToTracking(metadata?.kind ?? null) ?? 'prototype';
+    trackHomeClickCreateButton(
+      analytics.track,
+      {
+        page: 'home',
+        area: 'create_panel',
+        element: 'create_button',
+        action: 'create_project',
+        source_tab: createTabToTracking(tab),
+        project_kind: trackedKind,
+        has_project_name: name.trim().length > 0,
+      },
+      { requestId },
+    );
     onCreate({
       name: name.trim() || autoName(tab, mediaSurface, t),
       skillId: skillIdForTab,
       designSystemId: primaryDs,
       metadata,
+      requestId,
     });
   }
 
