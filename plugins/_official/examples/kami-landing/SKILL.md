@@ -62,8 +62,8 @@ parameters:
     values: [en, zh-CN, ja]
     default: en
     description: >
-      Sets the primary serif stack on `:root`. EN uses Charter,
-      zh-CN uses TsangerJinKai02 / Source Han Serif, ja uses
+      Sets the primary serif stack on `:root`. EN uses Anthropic Serif,
+      zh-CN uses LXGW WenKai GB (霞鹜文楷), ja uses
       YuMincho. Mixed-script content is allowed inline; the browser
       resolves per-glyph fallback automatically.
 outputs:
@@ -100,11 +100,11 @@ A single self-contained HTML file with:
   section number, the headline accent word, the left rule of the
   manifesto, and the metric values. Anywhere else, ink-blue must
   cover ≤ 5% of the document surface area.
-- **Serif at one weight (500) for hierarchy** — Charter (EN),
-  TsangerJinKai02 / Source Han Serif (CN), or YuMincho (JA),
+- **Serif at one weight (500) for hierarchy** — Anthropic Serif (EN),
+  LXGW WenKai GB (CN), or YuMincho (JA),
   selected by the `language` parameter. **No italic anywhere.**
 - **Tight print rhythm** — line-heights 1.10–1.55, letter-spacing
-  per language (0 for EN, 0.35px for CN, 0.02em for JA).
+  per language (0 for EN, 0.1px for CN, 0.02em for JA).
 - **Numeric stacks set in `font-variant-numeric: tabular-nums`** so
   metric columns and pagination digits sit cleanly aligned.
 - **Depth via 1px rings + whisper shadows** (`0 4px 24px rgba(0,0,0,0.05)`).
@@ -150,8 +150,8 @@ chapter body copy:
 
 | `language` | `--serif`                                                 | Notes                                  |
 | :--------- | :-------------------------------------------------------- | :------------------------------------- |
-| `en`       | Charter, Georgia, Palatino, Times New Roman, serif         | default                                |
-| `zh-CN`    | TsangerJinKai02, Source Han Serif SC, Songti SC, Georgia   | letter-spacing 0.35px on body          |
+| `en`       | Anthropic Serif, Charter, Georgia, Palatino, Times New Roman, serif | default                                |
+| `zh-CN`    | LXGW WenKai GB, Source Han Serif SC, Songti SC, Georgia    | letter-spacing 0.1px on body           |
 | `ja`       | YuMincho, Hiragino Mincho ProN, Source Han Serif JP        | also override `--olive` to `#4d4c48` (YuMincho strokes are thinner) |
 
 Inline mixed-script content is fine — the browser per-glyph fallback
