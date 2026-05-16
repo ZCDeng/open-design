@@ -19,6 +19,7 @@ permissions:
 jobs:
   metrics:
     name: Generate repository metrics SVG
+    if: github.repository == 'nexu-io/open-design'
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub repository metrics
@@ -34,6 +35,7 @@ jobs:
           token: ${{ secrets.METRICS_TOKEN || secrets.GITHUB_TOKEN }}
           committer_token: ${{ secrets.METRICS_TOKEN }}
           committer_branch: metrics-run-${{ github.run_id }}
+          committer_message: Update ${filename}
           output_action: pull-request
           output_condition: data-changed
 
