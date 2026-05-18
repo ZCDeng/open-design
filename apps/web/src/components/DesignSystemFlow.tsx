@@ -254,7 +254,7 @@ export function DesignSystemCreationFlow({
 
   function handleAddGithubUrl() {
     const nextUrl = normalizeGithubUrl(state.githubUrl);
-    if (!nextUrl || !isGithubConnectorConnected(githubConnector)) return;
+    if (!nextUrl) return;
     setState((curr) => ({
       ...curr,
       githubUrl: '',
@@ -505,14 +505,13 @@ export function DesignSystemCreationFlow({
               <div className="ds-resource-inline">
                 <input
                   value={state.githubUrl}
-                  disabled={!isGithubConnectorConnected(githubConnector)}
                   onChange={(event) => setState((curr) => ({ ...curr, githubUrl: event.target.value }))}
                   placeholder="https://github.com/owner/repo"
                 />
                 <button
                   type="button"
                   className="ghost"
-                  disabled={!isGithubConnectorConnected(githubConnector) || !state.githubUrl.trim()}
+                  disabled={!state.githubUrl.trim()}
                   onClick={handleAddGithubUrl}
                 >
                   Add
@@ -2095,13 +2094,13 @@ function GitHubConnectorGate({
   const connected = isGithubConnectorConnected(connector);
   const account = getDisplayableGithubAccountLabel(connector);
   const busy = action !== null;
-  let title = 'Connect GitHub before adding a repo';
-  let description = 'Open Design needs your GitHub connector before it can analyze repository links.';
+  let title = 'GitHub connector optional';
+  let description = 'Public repositories can be read with local git/gh. Connect GitHub only when connector access is useful.';
   let icon: 'github' | 'settings' | 'spinner' = 'github';
 
   if (!composioConfigured) {
-    title = 'Composio API key required';
-    description = 'Add your Composio API key first, then connect GitHub so repository files can be used as context.';
+    title = 'Local GitHub intake available';
+    description = 'Add public repository URLs now. Configure Composio only for connector-backed access; local git/gh fallback can still snapshot public repos.';
     icon = 'settings';
   } else if (loading) {
     title = 'Checking GitHub connector';
@@ -2109,13 +2108,13 @@ function GitHubConnectorGate({
     icon = 'spinner';
   } else if (authorizationPending) {
     title = 'GitHub authorization pending';
-    description = 'Finish authorization in the browser window, then Open Design will unlock the repo field.';
+    description = 'Finish authorization in the browser window. Public repo URLs can still use local git/gh fallback.';
   } else if (connected) {
     title = account ? `Connected as ${account}` : 'GitHub connected';
-    description = 'You can add repository links now, or disconnect this GitHub account.';
+    description = 'Repository intake will try the connector first, then use local git/gh fallback if connector output is limited.';
   } else if (composioConfigured) {
     title = 'Composio key configured';
-    description = 'Connect GitHub to grant repository access before adding a repo URL.';
+    description = 'Connect GitHub for connector-backed access, or add public repository URLs and let local git/gh snapshot them.';
   }
 
   return (
@@ -2728,11 +2727,11 @@ function buildSourceContextManifest(
 function buildGithubConnectorRunbook(githubUrls: string[]): string {
   if (githubUrls.length === 0) return '';
   const intakeCommands = githubUrls
-    .map((url) => `   - \`"$OD_NODE_BIN" "$OD_BIN" tools connectors github-design-context --repo ${shellQuote(url)} --output context/github/${githubEvidenceFileName(url)} --require-connector\``)
+    .map((url) => `   - \`"$OD_NODE_BIN" "$OD_BIN" tools connectors github-design-context --repo ${shellQuote(url)} --output context/github/${githubEvidenceFileName(url)}\``)
     .join('\n');
   return [
-    'GitHub connector intake is required before drafting the design system:',
-    '1. Run `"$OD_NODE_BIN" "$OD_BIN" tools connectors list --format compact` and find the connected `github` connector. Do not continue from URL text alone.',
+    'GitHub repository intake is required before drafting the design system:',
+    '1. Run `"$OD_NODE_BIN" "$OD_BIN" tools connectors list --format compact` to check whether the connected `github` connector is available. If it is missing, rate-limited, or output-limited, the bounded intake command can still use local git/gh fallback for public or locally authenticated repositories.',
     '2. For each linked repository, run the local intake command before writing design-system files:',
     intakeCommands,
     '3. Do not call GitHub connector tree/content/raw tools directly from the agent. Large repositories can trigger `CONNECTOR_OUTPUT_TOO_LARGE`; the bounded intake command is the only allowed GitHub repository intake path for this workflow.',
@@ -2766,7 +2765,7 @@ function githubConnectorStatusForManifest(options: {
   githubConnector: ConnectorDetail | null;
 }): string {
   if (!options.composioConfigured) {
-    return 'Composio API key is not configured, so GitHub connector access is not available yet.';
+    return 'GitHub connector is not configured; repository intake will use local git/gh fallback when possible.';
   }
   if (isGithubConnectorConnected(options.githubConnector)) {
     const account = options.githubConnector?.accountLabel?.trim();
@@ -2774,7 +2773,7 @@ function githubConnectorStatusForManifest(options: {
       ? `connected as ${account}.`
       : 'connected.';
   }
-  return 'Composio key is configured, but GitHub is not connected yet.';
+  return 'Composio key is configured, but GitHub is not connected; repository intake can still use local git/gh fallback when possible.';
 }
 
 function buildProvenance(state: SetupState): DesignSystemProvenance {

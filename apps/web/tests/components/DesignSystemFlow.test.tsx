@@ -569,7 +569,7 @@ describe('DesignSystemCreationFlow', () => {
     );
   });
 
-  it('guides users to configure Composio before GitHub repo links can be added', () => {
+  it('allows GitHub repo links without Composio by using local git fallback', () => {
     const onOpenConnectorsTab = vi.fn();
     const config = {
       composio: { apiKeyConfigured: false },
@@ -584,8 +584,14 @@ describe('DesignSystemCreationFlow', () => {
       />,
     );
 
-    expect((screen.getByPlaceholderText('https://github.com/owner/repo') as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByText('Composio API key required')).toBeTruthy();
+    const input = screen.getByPlaceholderText('https://github.com/owner/repo') as HTMLInputElement;
+    expect(input.disabled).toBe(false);
+    expect(screen.getByText('Local GitHub intake available')).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: 'https://github.com/nexu-io/open-design/' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(screen.getByText('nexu-io/open-design')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Configure Composio key' }));
 
@@ -593,7 +599,7 @@ describe('DesignSystemCreationFlow', () => {
     expect(mocks.fetchConnectorDetail).not.toHaveBeenCalled();
   });
 
-  it('unlocks GitHub repo links after the GitHub connector is connected', async () => {
+  it('keeps GitHub repo links available and shows connected connector status', async () => {
     const availableConnector: ConnectorDetail = {
       id: 'github',
       name: 'GitHub',
@@ -625,7 +631,7 @@ describe('DesignSystemCreationFlow', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Connect GitHub' })).toBeTruthy());
-    expect((screen.getByPlaceholderText('https://github.com/owner/repo') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByPlaceholderText('https://github.com/owner/repo') as HTMLInputElement).disabled).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Connect GitHub' }));
 
@@ -801,12 +807,17 @@ describe('DesignSystemCreationFlow', () => {
     expect(mocks.writeProjectTextFile).toHaveBeenCalledWith(
       project.id,
       'context/source-context.md',
-      expect.stringContaining('"$OD_NODE_BIN" "$OD_BIN" tools connectors github-design-context --repo \'https://github.com/nexu-io/open-design\' --output context/github/nexu-io-open-design.md --require-connector'),
+      expect.stringContaining('"$OD_NODE_BIN" "$OD_BIN" tools connectors github-design-context --repo \'https://github.com/nexu-io/open-design\' --output context/github/nexu-io-open-design.md'),
+    );
+    expect(mocks.writeProjectTextFile).not.toHaveBeenCalledWith(
+      project.id,
+      'context/source-context.md',
+      expect.stringContaining('--require-connector'),
     );
     expect(mocks.patchProject).toHaveBeenCalledWith(
       project.id,
       expect.objectContaining({
-        pendingPrompt: expect.stringContaining('GitHub connector intake is required before drafting the design system'),
+        pendingPrompt: expect.stringContaining('GitHub repository intake is required before drafting the design system'),
       }),
     );
     expect(mocks.patchProject).toHaveBeenCalledWith(
