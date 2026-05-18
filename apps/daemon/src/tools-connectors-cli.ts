@@ -1524,6 +1524,14 @@ async function auditDesignSystemPackage(
         'SKILL.md',
       );
     }
+    if (skillText !== undefined && !skillHasReusableSections(skillText)) {
+      addIssue(
+        'warning',
+        'skill_missing_reuse_sections',
+        'SKILL.md should read like a reusable Claude Design skill package: include What is inside, Source context, When to use, How to use, and design-system highlights grounded in source evidence.',
+        'SKILL.md',
+      );
+    }
   }
   if (fileSet.has('README.md')) {
     const readmeText = await readAuditText(projectPath, 'README.md');
@@ -1896,6 +1904,21 @@ function skillHasAgentFrontmatter(text: string): boolean {
   return /^name:\s+\S+/mu.test(frontmatter)
     && /^description:\s+\S+/mu.test(frontmatter)
     && /^user-invocable:\s+(true|false)/imu.test(frontmatter);
+}
+
+function skillHasReusableSections(text: string): boolean {
+  if (text.trim().length < 800) return false;
+  const hasInside = (/\*\*What's inside:\*\*/iu.test(text) || /^##\s+(?:What's inside|Contents)\s*$/imu.test(text))
+    && /\b(tokens?|assets?|fonts?|preview|ui\s*kit|components?)\b/iu.test(text);
+  const hasSourceContext = (/\*\*Source context:\*\*/iu.test(text) || /^##\s+(?:Source Context|Source)\s*$/imu.test(text))
+    && /\b(source|repository|github|local|based on|evidence)\b/iu.test(text);
+  const hasWhenToUse = (/\*\*When to use(?: this skill)?:\*\*/iu.test(text) || /^##\s+When to use(?: this skill)?\s*$/imu.test(text))
+    && /\b(prototypes?|mockups?|interfaces?|artifacts?|production|design|build(?:ing)?)\b/iu.test(text);
+  const hasHowToUse = (/\*\*How to use:\*\*/iu.test(text) || /^##\s+(?:How to use|Usage)\s*$/imu.test(text))
+    && /\b(README\.md|DESIGN\.md|colors_and_type\.css|preview\/|assets\/|build\/|fonts\/|ui_kits\/app)\b/iu.test(text);
+  const hasHighlights = (/\*\*Design system highlights:\*\*/iu.test(text) || /^##\s+(?:(?:Design System|Design) )?Highlights\s*$/imu.test(text))
+    && /\b(colors?|typography|spacing|radius|shadows?|icons?|layout|interaction)\b/iu.test(text);
+  return hasInside && hasSourceContext && hasWhenToUse && hasHowToUse && hasHighlights;
 }
 
 function readmeHasProductOverview(text: string): boolean {

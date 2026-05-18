@@ -120,8 +120,36 @@ Read README.md, DESIGN.md, colors_and_type.css, the preview cards, preserved ass
 - Source-backed visual foundations, token CSS, assets, build icons, fonts, preview cards, source examples, and UI kit components.
 - DESIGN.md as canonical rules and README.md as the package manifest.
 
+**Source context:**
+This design system is based on Cherry Studio source evidence captured from its repository and package assets. The source product is a desktop AI chat workspace with assistant navigation, model controls, chat surfaces, composer flows, and compact cross-platform app chrome.
+
+**When to use this skill:**
+- Creating source-backed Cherry Studio mockups, prototypes, or review artifacts.
+- Designing new UI modules that need to match the extracted desktop app visual language.
+- Building production-adjacent interfaces that should reuse preserved assets, fonts, and token CSS.
+
 **How to use:**
 Load colors_and_type.css, inspect preview/, reuse ui_kits/app/, and preserve compact app-like layouts grounded in the captured evidence instead of inventing a marketing page.
+
+**Design system highlights:**
+- Primary color: #00b96b with muted neutral surfaces.
+- Typography: Ubuntu-backed sans family with compact app hierarchy.
+- Layout: persistent sidebar, assistant rail, chat workspace, and composer.
+- Interaction: subtle hover, active, focus, and disabled states for dense productivity UI.
+`;
+
+const SKILL_WITHOUT_REUSE_SECTIONS = `---
+name: cherry-studio-design
+description: Use this skill when creating Open Design artifacts that should match the Cherry Studio desktop AI chat workspace.
+user-invocable: true
+---
+
+Read README.md, DESIGN.md, colors_and_type.css, the preview cards, preserved assets, fonts, and the modular UI kit before generating any new interface.
+
+This package is intended for reusable Open Design work, so future agents should keep the output grounded in captured evidence, use preserved assets instead of redrawing brand marks, keep app surfaces compact, and inspect preview cards before introducing any new component pattern. Treat it as a focused product design kit, not a generic style summary.
+
+**How to use:**
+Load colors_and_type.css and inspect preview/ before creating new artifacts. Reuse ui_kits/app when composing product-like screens and check README.md plus DESIGN.md before making visual decisions.
 `;
 
 const AUDIT_UI_KIT_README = `# Cherry Studio UI Kit
@@ -167,8 +195,22 @@ Read README.md, colors_and_type.css, the preview cards, preserved fonts, and the
 - Preview cards showing the complete design-system review surface.
 - UI kit with modular components for shell, sidebar, chat surfaces, and composer flows.
 
+**Source context:**
+This design system is based on Cherry Studio source evidence and package assets. The product is a desktop AI chat application with assistant navigation, multi-model conversations, settings surfaces, and app-shell layouts.
+
+**When to use this skill:**
+- Generating Cherry Studio-aligned prototypes, mockups, and reviewable HTML artifacts.
+- Building production-adjacent UI that should reuse the extracted visual language.
+- Creating app-like surfaces that need the source-backed assets, fonts, and layout conventions.
+
 **How to use:**
 Copy assets, load the token CSS, inspect the preview cards, then compose new HTML or app UI from the modular kit. Keep generated surfaces compact, workspace-oriented, and grounded in the captured evidence instead of inventing a marketing page.
+
+**Design system highlights:**
+- Colors: source-backed green accent with light and dark theme surfaces.
+- Typography: Ubuntu family with compact desktop app sizing.
+- Spacing and radius: dense sidebar, list, chat, and composer rhythm.
+- Icons and assets: preserved brand and runtime assets instead of redrawn placeholders.
 `;
 
 const UNBOUND_FONT_AUDIT_TOKENS_CSS = `:root {
@@ -838,6 +880,48 @@ describe('connectors tool CLI', () => {
         code: 'missing_skill_frontmatter',
         path: 'SKILL.md',
         message: expect.stringContaining('YAML frontmatter'),
+      }),
+    ]));
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('warns when SKILL.md lacks Claude-style reusable skill sections', async () => {
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'od-package-audit-skill-sections-'));
+    process.chdir(tmpDir);
+    await mkdir(path.join(tmpDir, 'preview'), { recursive: true });
+    await mkdir(path.join(tmpDir, 'ui_kits/app/components'), { recursive: true });
+    await writeFile(path.join(tmpDir, 'DESIGN.md'), AUDIT_DESIGN_MD);
+    await writeFile(path.join(tmpDir, 'README.md'), AUDIT_README);
+    await writeFile(path.join(tmpDir, 'SKILL.md'), SKILL_WITHOUT_REUSE_SECTIONS);
+    await writeFile(path.join(tmpDir, 'colors_and_type.css'), AUDIT_TOKENS_CSS);
+    for (const fileName of [
+      'colors-primary.html',
+      'colors-theme-light.html',
+      'typography-specimens.html',
+      'spacing-tokens.html',
+      'components-buttons.html',
+      'brand-assets.html',
+    ]) {
+      await writeFile(path.join(tmpDir, 'preview', fileName), auditHtml(fileName));
+    }
+    await writeFile(path.join(tmpDir, 'ui_kits/app/index.html'), auditUiKitIndex());
+    await writeFile(path.join(tmpDir, 'ui_kits/app/README.md'), AUDIT_UI_KIT_README);
+    for (const componentName of AUDIT_COMPONENT_FILES) {
+      await writeFile(
+        path.join(tmpDir, 'ui_kits/app/components', componentName),
+        auditUiKitComponent(componentName),
+      );
+    }
+
+    const result = await runConnectorsToolCli(['design-system-package-audit', '--path', tmpDir]);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(stdoutOutput.join('')).warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'skill_missing_reuse_sections',
+        path: 'SKILL.md',
+        message: expect.stringContaining('reusable Claude Design skill package'),
       }),
     ]));
 
