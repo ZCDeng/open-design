@@ -139,9 +139,9 @@ Ask in two rounds (don't dump the whole list at once):
 ### 2. Pick the language stack
 
 Same as [`kami-landing`](../kami-landing/SKILL.md#2-pick-the-language-stack):
-EN → Anthropic Serif, zh-CN → LXGW WenKai GB, ja →
-YuMincho. JA also overrides `--olive` to `#4d4c48` because YuMincho
-strokes are thinner.
+EN → Anthropic Serif (Charter fallback), zh-CN → LXGW WenKai GB /
+Source Han Serif, ja → YuMincho. JA also overrides `--olive` to
+`#4d4c48` because YuMincho strokes are thinner.
 
 ### 3. Write `index.html`
 

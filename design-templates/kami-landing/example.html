@@ -17,9 +17,9 @@
  * design-systems/kami/DESIGN.md. Do not invent new tokens here;
  * extend the design system first.
  *
- * Typeface choice: Source Serif 4 (Charter family) is the EN default
- * because Charter itself is not Google-hosted. The fallback chain
- * resolves to Charter on macOS and to Georgia / Palatino elsewhere.
+ * Typeface choice: Anthropic Serif is the EN default; Charter is the
+ * immediate fallback when Anthropic Serif isn't installed, then
+ * Georgia / Palatino on systems without either.
  */
 
 :root {
@@ -49,8 +49,8 @@
   --tag-30: #D6E1EE;
 
   /* ----- Type stacks ----- */
-  --serif: 'Source Serif 4', Charter, Georgia, Palatino, 'Times New Roman', serif;
-  --sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --serif: 'Anthropic Serif', Charter, Georgia, Palatino, 'Times New Roman', serif;
+  --sans: var(--serif);
   --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, Monaco, monospace;
 
   /* ----- Motion ----- */

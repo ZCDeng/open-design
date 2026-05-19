@@ -62,10 +62,10 @@ parameters:
     values: [en, zh-CN, ja]
     default: en
     description: >
-      Sets the primary serif stack on `:root`. EN uses Anthropic Serif,
-      zh-CN uses LXGW WenKai GB (霞鹜文楷), ja uses
-      YuMincho. Mixed-script content is allowed inline; the browser
-      resolves per-glyph fallback automatically.
+      Sets the primary serif stack on `:root`. EN uses Anthropic Serif
+      (Charter fallback), zh-CN uses LXGW WenKai GB / Source Han Serif,
+      ja uses YuMincho. Mixed-script content is allowed inline; the
+      browser resolves per-glyph fallback automatically.
 outputs:
   - path: <out>/index.html
     description: Self-contained HTML, kami CSS inlined, zero JS, zero external dependencies beyond Google Fonts.
@@ -100,9 +100,9 @@ A single self-contained HTML file with:
   section number, the headline accent word, the left rule of the
   manifesto, and the metric values. Anywhere else, ink-blue must
   cover ≤ 5% of the document surface area.
-- **Serif at one weight (500) for hierarchy** — Anthropic Serif (EN),
-  LXGW WenKai GB (CN), or YuMincho (JA),
-  selected by the `language` parameter. **No italic anywhere.**
+- **Serif at one weight (500) for hierarchy** — Anthropic Serif (EN,
+  Charter fallback), LXGW WenKai GB / Source Han Serif (CN), or
+  YuMincho (JA), selected by the `language` parameter. **No italic anywhere.**
 - **Tight print rhythm** — line-heights 1.10–1.55, letter-spacing
   per language (0 for EN, 0.1px for CN, 0.02em for JA).
 - **Numeric stacks set in `font-variant-numeric: tabular-nums`** so

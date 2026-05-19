@@ -15,7 +15,7 @@ Hierarchy is carried almost entirely by **serif type at a single weight (500)**.
 - Warm parchment canvas (`#f5f4ed`) — never `#ffffff`
 - Single accent: ink-blue (`#1B365D`), covers ≤ 5% of any surface
 - All grays warm (R ≈ G > B), no cool blue-grays anywhere
-- Serif everywhere for hierarchy: Charter (EN), TsangerJinKai02 / Source Han Serif (CN), YuMincho (JA)
+- Serif everywhere for hierarchy: Anthropic Serif (EN), LXGW WenKai GB / Source Han Serif (CN), YuMincho (JA)
 - Locked at weight 500 — no synthetic bold (700/900) and **no italic**
 - Tight print rhythm (line-heights 1.10–1.55), much denser than typical web body
 - Depth via 1px rings and whisper shadows (`0 4px 24px rgba(0,0,0,0.05)`), never hard drop shadows
@@ -73,20 +73,20 @@ kami is **gradient-free** by default. The only sanctioned gradient is the soft t
 
 ```css
 /* English (default) */
---serif: Charter, Georgia, Palatino, "Times New Roman", serif;
+--serif: "Anthropic Serif", Charter, Georgia, Palatino, "Times New Roman", serif;
 
 /* Chinese */
---serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC",
+--serif: "LXGW WenKai GB", "Source Han Serif SC", "Noto Serif CJK SC",
          "Songti SC", "STSong", Georgia, serif;
 
 /* Japanese */
 --serif: "YuMincho", "Yu Mincho", "Hiragino Mincho ProN",
          "Noto Serif CJK JP", "Source Han Serif JP",
-         "TsangerJinKai02", Georgia, serif;
+         Georgia, serif;
 
 /* Mono — must include CJK fallback so labels/comments don't render as boxes */
 --mono: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, Monaco,
-        "TsangerJinKai02", "Source Han Serif SC", monospace;
+        "Source Han Serif SC", monospace;
 
 /* Sans always equals serif. There is no separate sans-serif family. */
 --sans: var(--serif);
@@ -121,7 +121,7 @@ Concretely: a 22pt H1 in print becomes ~29px on a web page and ~36px on a slide;
 | H3 | serif | 17–18px | 500 | 1.30 | 0 | Item title, card heading |
 | Manifesto / pull quote | serif | 20px | 400 | 1.65 | 0.05em | The one place letter-spacing earns its keep |
 | Lede | serif | 15–16px | 500 | 1.55 | 0 | Intro paragraph under a section title |
-| Body | serif | 14px | 400 | 1.55 | 0 (EN) · 0.35px (CN) · 0.02em (JA) | Reading body |
+| Body | serif | 14px | 400 | 1.55 | 0 (EN) · 0.1px (CN) · 0.02em (JA) | Reading body |
 | Body dense | serif | 13–14px | 400 | 1.40–1.45 | 0 | Resume, one-pager, dense lists |
 | Caption | serif | 12px | 500 | 1.45 | 0 | Notes, figure captions |
 | Eyebrow / overline | sans | 12px | 500 | 1 | 1.2px, **uppercase** | Section eyebrow, switcher, meta header |
@@ -144,7 +144,7 @@ Forbidden: 1.6+ (web rhythm, floats off the page) and 1.0–1.05 (lines collide 
 
 ### Letter-spacing
 - EN body: `0`
-- CN body (TsangerJinKai02): `0.35px` to compensate for the font's natural density
+- CN body (LXGW WenKai GB): `0.1px` — Klee 系楷书字形自带横向呼吸，所需轨距明显小于宋体
 - JA body: `0.02em`
 - All-caps overlines and small labels (< 10pt): +0.5 to +1.2px is mandatory
 - Display CJK at 24px+: `0.2–1px` of optical breathing room

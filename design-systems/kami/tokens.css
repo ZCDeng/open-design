@@ -98,21 +98,21 @@
   --danger: #8a3a30;        /* warm terracotta — never tailwind red */
 
   /* ─── Typography ─────────────────────────────────────────────────
-   * Default to English Charter stack on :root. The `:root[lang]`
-   * blocks below override for CN and JA. `--font-body` and
-   * `--font-display` are equal — kami uses a single serif weight
+   * Default to English Anthropic Serif + Charter stack on :root. The
+   * `:root[lang]` blocks below override for CN and JA. `--font-body`
+   * and `--font-display` are equal — kami uses a single serif weight
    * (500) and lets size carry hierarchy.
    *
    * Sans is reserved for eyebrows, switchers, small labels — it
    * literally equals the serif stack, so there is no separate
    * sans token. */
   --font-display:
-    Charter, Georgia, Palatino, "Times New Roman", serif;
+    "Anthropic Serif", Charter, Georgia, Palatino, "Times New Roman", serif;
   --font-body:
-    Charter, Georgia, Palatino, "Times New Roman", serif;
+    "Anthropic Serif", Charter, Georgia, Palatino, "Times New Roman", serif;
   --font-mono:
     "JetBrains Mono", "SF Mono", "Fira Code", Consolas, Monaco,
-    "TsangerJinKai02", "Source Han Serif SC", monospace;
+    "Source Han Serif SC", monospace;
 
   /* Type scale (px) — derived from DESIGN.md §3 hierarchy table.
    * kami runs lighter on the small end and heavier on the display
@@ -250,10 +250,10 @@
 :root[lang="zh-CN"],
 :root[lang="zh"] {
   --font-display:
-    "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC",
+    "LXGW WenKai GB", "Source Han Serif SC", "Noto Serif CJK SC",
     "Songti SC", "STSong", Georgia, serif;
   --font-body:
-    "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC",
+    "LXGW WenKai GB", "Source Han Serif SC", "Noto Serif CJK SC",
     "Songti SC", "STSong", Georgia, serif;
 }
 
@@ -261,11 +261,11 @@
   --font-display:
     "YuMincho", "Yu Mincho", "Hiragino Mincho ProN",
     "Noto Serif CJK JP", "Source Han Serif JP",
-    "TsangerJinKai02", Georgia, serif;
+    Georgia, serif;
   --font-body:
     "YuMincho", "Yu Mincho", "Hiragino Mincho ProN",
     "Noto Serif CJK JP", "Source Han Serif JP",
-    "TsangerJinKai02", Georgia, serif;
+    Georgia, serif;
   /* JA needs the lighter olive override — YuMincho strokes are thinner
    * and the standard olive looks anemic against parchment. */
   --muted: #4d4c48;

@@ -47,7 +47,7 @@ parameters:
     type: enum
     values: [en, zh-CN, ja]
     default: en
-    description: Sets `--serif` to Charter / TsangerJinKai02 / YuMincho respectively.
+    description: Sets `--serif` to Anthropic Serif / LXGW WenKai GB / YuMincho respectively.
 outputs:
   - path: <out>/index.html
     description: Self-contained kami deck with horizontal swipe pagination.
@@ -138,9 +138,9 @@ Ask in two rounds (don't dump the whole list at once):
 ### 2. Pick the language stack
 
 Same as [`kami-landing`](../kami-landing/SKILL.md#2-pick-the-language-stack):
-EN → Charter, zh-CN → TsangerJinKai02 / Source Han Serif, ja →
-YuMincho. JA also overrides `--olive` to `#4d4c48` because YuMincho
-strokes are thinner.
+EN → Anthropic Serif (Charter fallback), zh-CN → LXGW WenKai GB /
+Source Han Serif, ja → YuMincho. JA also overrides `--olive` to
+`#4d4c48` because YuMincho strokes are thinner.
 
 ### 3. Write `index.html`
 

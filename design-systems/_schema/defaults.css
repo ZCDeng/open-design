@@ -54,7 +54,7 @@
 
   /* Monospace. Every brand uses kbd / tabular-nums / code somewhere;
      CJK brands override with a stack that includes their preferred
-     CJK monospace face (kami adds TsangerJinKai02 / Source Han Serif). */
+     CJK monospace face (kami adds Source Han Serif). */
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
 
   /* Base spacing scale on a 4px grid. Identical across default and

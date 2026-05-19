@@ -41,8 +41,8 @@ od:
 - **墨色**: 主文字 `#1f1d18` (近黑暖灰, 不用纯黑 `#000`)。次文字 `#6b665b`。
 - **唯一色彩**: 墨蓝 `#1B365D` ——所有 accent (链接、tag 描边、重点数字、引用左 rule) 只能用这一个色, 严禁多色。
 - **字体**: 一种语言一种衬线, 全文不混用:
-  - 英文: `Charter` (fallback: `Source Serif Pro`, `Iowan Old Style`)
-  - 中文: `TsangerJinKai02 W04` (fallback: `Noto Serif SC`)
+  - 英文: `Anthropic Serif` (fallback: `Charter`, `Source Serif Pro`, `Iowan Old Style`)
+  - 中文: `LXGW WenKai GB` (fallback: `Source Han Serif SC`, `Noto Serif SC`)
   - 日文: `YuMincho` (fallback: `Noto Serif JP`)
   - Body 400, Heading 500 (不要 700/800/900)。
 - **行高**: 标题 1.1–1.3, 紧凑正文 1.4–1.45, 阅读型正文 1.5–1.55。
