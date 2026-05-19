@@ -19,6 +19,7 @@ import { useT } from '../i18n';
 
 export type EntryView =
   | 'home'
+  | 'onboarding'
   | 'projects'
   | 'tasks'
   | 'plugins'
