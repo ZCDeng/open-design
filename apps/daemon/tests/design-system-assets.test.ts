@@ -19,6 +19,7 @@ import {
   listDesignSystems,
   readDesignSystem,
   readDesignSystemAssets,
+  readDesignSystemPullFile,
   resolveDesignSystemAssets,
 } from '../src/design-systems.js';
 
@@ -319,6 +320,59 @@ describe('Design System Project manifest runtime consumption', () => {
     expect(assets.pullIndex).toContain('preview/colors.html: Colors; colors');
     expect(assets.pullIndex).toContain('fonts/Inter-Medium.woff2: font: Inter 500');
     expect(assets.pullIndex).toContain('source/snippets/INDEX.json: source snippet index');
+  });
+
+  it('allows pull reads only for manifest-declared rich-layer files', async () => {
+    const root = fresh();
+    const dir = writeDesignSystemProject(root, 'pull-project', {
+      manifest: {
+        schemaVersion: 'od-design-system-project/v1',
+        id: 'pull-project',
+        name: 'Pull Project',
+        category: 'Imported',
+        source: { type: 'local', path: '/tmp/project' },
+        files: {
+          design: 'DESIGN.md',
+          tokens: 'tokens.css',
+          components: 'components.html',
+        },
+        assetsDir: 'assets',
+        preview: {
+          dir: 'preview',
+          pages: [{ path: 'preview/colors.html', role: 'colors', title: 'Colors' }],
+        },
+        sourceFiles: {
+          snippets: 'source/snippets/INDEX.json',
+        },
+      },
+    });
+    mkdirSync(path.join(dir, 'preview'), { recursive: true });
+    mkdirSync(path.join(dir, 'source', 'snippets'), { recursive: true });
+    mkdirSync(path.join(dir, 'assets', 'icons'), { recursive: true });
+    writeFileSync(path.join(dir, 'preview', 'colors.html'), '<h1>Colors</h1>');
+    writeFileSync(path.join(dir, 'preview', 'spacing.html'), '<h1>Spacing</h1>');
+    writeFileSync(path.join(dir, 'source', 'snippets', 'INDEX.json'), `${JSON.stringify({
+      schemaVersion: 1,
+      snippets: [{ path: 'source/snippets/Button.tsx', role: 'button' }],
+    })}\n`);
+    writeFileSync(path.join(dir, 'source', 'snippets', 'Button.tsx'), 'export function Button() {}');
+    writeFileSync(path.join(dir, 'assets', 'icons', 'mark.svg'), '<svg />');
+
+    await expect(readDesignSystemPullFile(root, 'pull-project', 'preview/colors.html')).resolves.toMatchObject({
+      path: 'preview/colors.html',
+      encoding: 'utf8',
+      content: '<h1>Colors</h1>',
+    });
+    await expect(readDesignSystemPullFile(root, 'pull-project', 'source/snippets/Button.tsx')).resolves.toMatchObject({
+      path: 'source/snippets/Button.tsx',
+      content: 'export function Button() {}',
+    });
+    await expect(readDesignSystemPullFile(root, 'pull-project', 'assets/icons/mark.svg')).resolves.toMatchObject({
+      path: 'assets/icons/mark.svg',
+      content: '<svg />',
+    });
+    await expect(readDesignSystemPullFile(root, 'pull-project', 'preview/spacing.html')).resolves.toBeNull();
+    await expect(readDesignSystemPullFile(root, 'pull-project', '../pull-project/preview/colors.html')).resolves.toBeNull();
   });
 });
 

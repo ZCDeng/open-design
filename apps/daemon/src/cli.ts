@@ -4,6 +4,7 @@ import { runDaemonCliStartup } from './daemon-startup.js';
 import { runLiveArtifactsMcpServer } from './mcp-live-artifacts-server.js';
 import { runArtifactsCli } from './artifacts-cli.js';
 import { runConnectorsToolCli } from './tools-connectors-cli.js';
+import { runDesignSystemsToolCli } from './tools-design-systems-cli.js';
 import { runLiveArtifactsToolCli } from './tools-live-artifacts-cli.js';
 import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
@@ -232,6 +233,16 @@ if (argv[0] === 'tools' && argv[1] === 'live-artifacts') {
       process.stderr.write(`${JSON.stringify({ ok: false, error: { message } })}\n`);
       process.exitCode = 1;
     });
+} else if (argv[0] === 'tools' && argv[1] === 'design-systems') {
+  runDesignSystemsToolCli(argv.slice(2))
+    .then(({ exitCode }) => {
+      process.exitCode = exitCode;
+    })
+    .catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`${JSON.stringify({ ok: false, error: { message } })}\n`);
+      process.exitCode = 1;
+    });
 } else {
   await runDaemonCliStartup(argv, { printHelp: printRootHelp });
 }
@@ -249,6 +260,9 @@ function printRootHelp() {
 
   od tools connectors <list|execute|github-design-context> [options]
       Discover and execute configured connectors.
+
+  od tools design-systems read --path <manifest-declared-path>
+      Read active design-system pull-layer files through daemon wrapper commands.
 
   od mcp live-artifacts
       Start the MCP server exposing live-artifact and connector tools.

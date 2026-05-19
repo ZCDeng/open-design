@@ -66,6 +66,16 @@ export type DesignSystemFileDetail = DesignSystemFileSummary & {
   content: string;
 };
 
+export type DesignSystemPullFileDetail = {
+  path: string;
+  name: string;
+  kind: DesignSystemFileKind;
+  size: number;
+  updatedAt: string;
+  encoding: 'utf8' | 'base64';
+  content: string;
+};
+
 export type DesignSystemRevision = {
   id: string;
   designSystemId: string;
@@ -375,6 +385,48 @@ export async function readDesignSystemAssets(
   });
 }
 
+export async function readDesignSystemPullFile(
+  root: string,
+  id: string,
+  relativePath: string,
+): Promise<DesignSystemPullFileDetail | null> {
+  const dirId = stripPrefixAndValidateId(id, id.startsWith('user:') ? 'user:' : '');
+  const cleanPath = sanitizeRelativeFilePath(relativePath);
+  if (!dirId || !cleanPath) return null;
+
+  const brandRoot = path.join(root, dirId);
+  const manifest = await readProjectManifest(brandRoot, dirId);
+  if (manifest === null) return null;
+
+  const allowed = await buildDesignSystemPullFileAllowlist(brandRoot, manifest);
+  if (!allowed.has(cleanPath)) return null;
+
+  const resolvedRoot = path.resolve(brandRoot);
+  const filePath = path.resolve(brandRoot, cleanPath);
+  if (filePath !== resolvedRoot && !filePath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    return null;
+  }
+
+  try {
+    const stats = await stat(filePath);
+    if (!stats.isFile()) return null;
+    const bytes = await readFile(filePath);
+    const encoding = isTextDesignSystemPullFile(cleanPath) ? 'utf8' : 'base64';
+    return {
+      path: cleanPath,
+      name: path.basename(cleanPath),
+      kind: classifyDesignSystemFile(cleanPath, false),
+      size: stats.size,
+      updatedAt: stats.mtime.toISOString(),
+      encoding,
+      content: encoding === 'utf8' ? bytes.toString('utf8') : bytes.toString('base64'),
+    };
+  } catch (err) {
+    if (isAbsenceError(err)) return null;
+    throw err;
+  }
+}
+
 export function isDesignTokenChannelEnabled(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
@@ -492,6 +544,109 @@ function buildDesignSystemPullIndex(
 
   if (entries.length === 0) return undefined;
   return ['Additional design-system files declared by manifest.json:', ...entries].join('\n');
+}
+
+async function buildDesignSystemPullFileAllowlist(
+  brandRoot: string,
+  manifest: DesignSystemProjectManifest,
+): Promise<Set<string>> {
+  const allowed = new Set<string>();
+  const add = (filePath: string | undefined): void => {
+    const cleanPath = typeof filePath === 'string' ? sanitizeRelativeFilePath(filePath) : null;
+    if (cleanPath) allowed.add(cleanPath);
+  };
+
+  for (const page of manifest.preview?.pages ?? []) add(page.path);
+  add(manifest.sourceFiles?.scanned);
+  add(manifest.sourceFiles?.evidence);
+  add(manifest.sourceFiles?.tokens);
+  add(manifest.sourceFiles?.snippets);
+
+  if (manifest.assetsDir === 'assets') {
+    await addFilesUnderDeclaredDir(brandRoot, 'assets', allowed);
+  }
+
+  if (manifest.sourceFiles?.snippets) {
+    await addSnippetIndexEntries(brandRoot, manifest.sourceFiles.snippets, allowed);
+  }
+
+  return allowed;
+}
+
+async function addFilesUnderDeclaredDir(
+  brandRoot: string,
+  dir: string,
+  allowed: Set<string>,
+): Promise<void> {
+  if (!isSafeManifestPath(dir)) return;
+  const absoluteDir = path.join(brandRoot, dir);
+  let entries;
+  try {
+    entries = await readdir(absoluteDir, { withFileTypes: true });
+  } catch (err) {
+    if (isAbsenceError(err)) return;
+    throw err;
+  }
+  await Promise.all(entries.map(async (entry) => {
+    const relativePath = `${dir}/${entry.name}`;
+    if (!isSafeManifestPath(relativePath)) return;
+    if (entry.isDirectory()) {
+      await addFilesUnderDeclaredDir(brandRoot, relativePath, allowed);
+    } else if (entry.isFile()) {
+      allowed.add(relativePath);
+    }
+  }));
+}
+
+async function addSnippetIndexEntries(
+  brandRoot: string,
+  indexPath: string,
+  allowed: Set<string>,
+): Promise<void> {
+  if (!isSafeManifestPath(indexPath)) return;
+  let raw: string | undefined;
+  try {
+    raw = await readFileOptional(path.join(brandRoot, indexPath));
+  } catch {
+    return;
+  }
+  if (raw === undefined) return;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+    const snippets = (parsed as { snippets?: unknown }).snippets;
+    if (!Array.isArray(snippets)) return;
+    for (const snippet of snippets) {
+      if (!snippet || typeof snippet !== 'object' || Array.isArray(snippet)) continue;
+      const snippetPath = (snippet as { path?: unknown }).path;
+      if (typeof snippetPath === 'string') {
+        const cleanPath = sanitizeRelativeFilePath(snippetPath);
+        if (cleanPath?.startsWith('source/snippets/')) allowed.add(cleanPath);
+      }
+    }
+  } catch {
+    // A malformed snippets index should not widen the allowlist.
+  }
+}
+
+function isTextDesignSystemPullFile(relativePath: string): boolean {
+  const ext = path.extname(relativePath).toLowerCase();
+  return new Set([
+    '.css',
+    '.html',
+    '.js',
+    '.jsx',
+    '.json',
+    '.md',
+    '.mjs',
+    '.svg',
+    '.ts',
+    '.tsx',
+    '.txt',
+    '.xml',
+    '.yaml',
+    '.yml',
+  ]).has(ext);
 }
 
 export async function createUserDesignSystem(
