@@ -3,22 +3,19 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
-import { describe, expect, test } from 'vitest';
+import { chromium, expect as playwrightExpect, type Browser, type Page } from '@playwright/test';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import { createFakeAgentRuntimes } from '@/fake-agents';
-import {
-  extractArtifactFromRunEvents,
-  persistExtractedArtifact,
-  type ProjectFile,
-} from '@/vitest/artifacts';
+import type { ProjectFile } from '@/vitest/artifacts';
 import { requestJson, requestText } from '@/vitest/http';
-import { listMessages, saveMessage, type E2eChatMessage } from '@/vitest/messages';
-import { readRunEvents, startRun, waitForRunStatus } from '@/vitest/runs';
+import { listMessages, type E2eChatMessage } from '@/vitest/messages';
 import { createSmokeSuite } from '@/vitest/smoke-suite';
 
 const PROMPT = 'Create a deterministic smoke artifact';
 const FILE_NAME = 'real-daemon-smoke.html';
 const HEADING = 'Real Daemon Smoke';
+const STORAGE_KEY = 'open-design:config';
 
 type ProjectResponse = {
   conversationId: string;
@@ -32,6 +29,13 @@ type ProjectResponse = {
 };
 
 describe('dialog artifact consistency', () => {
+  let browser: Browser | null = null;
+
+  afterEach(async () => {
+    await browser?.close();
+    browser = null;
+  });
+
   test('keeps run status, saved message, persisted file metadata, and raw artifact content aligned', async () => {
     const suite = await createSmokeSuite('dialog-artifact-consistency');
 
@@ -48,6 +52,7 @@ describe('dialog artifact consistency', () => {
           agentModels: { codex: { model: 'default', reasoning: 'default' } },
           designSystemId: null,
           onboardingCompleted: true,
+          privacyDecisionAt: 1,
           skillId: null,
           telemetry: { artifactManifest: true, content: false, metrics: false },
         },
@@ -65,65 +70,41 @@ describe('dialog artifact consistency', () => {
         },
       });
 
-      const now = Date.now();
-      const userMessageId = `user-${now}`;
-      const assistantMessageId = `assistant-${now}`;
-      await saveMessage(webUrl, project.project.id, project.conversationId, {
-        content: PROMPT,
-        createdAt: now,
-        id: userMessageId,
-        role: 'user',
-      });
-      await saveMessage(webUrl, project.project.id, project.conversationId, {
-        agentId: 'codex',
-        agentName: 'Codex',
-        content: '',
-        createdAt: now,
-        events: [],
-        id: assistantMessageId,
-        role: 'assistant',
-        runStatus: 'running',
-        startedAt: now,
-      });
+      browser = await chromium.launch();
+      const context = await browser.newContext({ baseURL: webUrl });
+      await context.addInitScript(({ key, codexEnv }) => {
+        window.localStorage.setItem(
+          key,
+          JSON.stringify({
+            mode: 'daemon',
+            apiKey: '',
+            baseUrl: 'https://api.anthropic.com',
+            model: 'claude-sonnet-4-5',
+            agentId: 'codex',
+            skillId: null,
+            designSystemId: null,
+            onboardingCompleted: true,
+            privacyDecisionAt: 1,
+            agentModels: { codex: { model: 'default', reasoning: 'default' } },
+            agentCliEnv: { codex: codexEnv },
+            telemetry: { metrics: false, content: false, artifactManifest: true },
+          }),
+        );
+      }, { key: STORAGE_KEY, codexEnv: fakeAgents.codex.env });
 
-      const run = await startRun(webUrl, {
-        agentId: 'codex',
-        assistantMessageId,
-        clientRequestId: `artifact-consistency-${now}`,
-        conversationId: project.conversationId,
-        designSystemId: null,
-        message: PROMPT,
-        model: 'default',
-        projectId: project.project.id,
-        reasoning: 'default',
-        skillId: null,
-      });
+      const page = await context.newPage();
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(({ projectId, conversationId }) => {
+        const target = `/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(conversationId)}`;
+        window.history.pushState(null, '', target);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }, { projectId: project.project.id, conversationId: project.conversationId });
+      await expectWorkspaceReady(page);
 
-      const finalRun = await waitForRunStatus(webUrl, run.runId, 'succeeded', { timeoutMs: 30_000 });
-      const events = await readRunEvents(webUrl, run.runId);
-      const artifact = extractArtifactFromRunEvents(events);
-      const persistedFile = await persistExtractedArtifact(webUrl, project.project.id, artifact, {
-        designSystemId: null,
-        sourceSkillId: null,
-      });
-      await saveMessage(webUrl, project.project.id, project.conversationId, {
-        agentId: 'codex',
-        agentName: 'Codex',
-        content: artifact.rawText,
-        createdAt: now,
-        endedAt: Date.now(),
-        events: [],
-        id: assistantMessageId,
-        producedFiles: [persistedFile],
-        role: 'assistant',
-        runId: finalRun.id,
-        runStatus: 'succeeded',
-        startedAt: now,
-        telemetryFinalized: true,
-      });
+      const createRunResponse = await sendPrompt(page, PROMPT);
+      const { runId } = (await createRunResponse.json()) as { runId: string };
 
-      expect(finalRun.assistantMessageId).toBe(assistantMessageId);
-      expect(finalRun.projectId).toBe(project.project.id);
+      const persistedFile = await waitForProjectFile(webUrl, project.project.id, FILE_NAME);
       expect(persistedFile.name).toBe(FILE_NAME);
       expect(persistedFile.kind).toBe('html');
       expect(persistedFile.artifactManifest?.title).toBe(HEADING);
@@ -137,11 +118,15 @@ describe('dialog artifact consistency', () => {
         }),
       );
 
-      const listedMessages = await listMessages(webUrl, project.project.id, project.conversationId);
-      const assistant = listedMessages.find((message) => message.id === assistantMessageId);
+      const assistant = await waitForFinishedAssistantMessage(
+        webUrl,
+        project.project.id,
+        project.conversationId,
+        runId,
+      );
       assertAssistantMessage(assistant);
       expect(assistant.runStatus).toBe('succeeded');
-      expect(assistant.runId).toBe(finalRun.id);
+      expect(assistant.runId).toBe(runId);
       expect(assistant.producedFiles).toEqual([
         expect.objectContaining({
           artifactManifest: expect.objectContaining({
@@ -179,14 +164,14 @@ describe('dialog artifact consistency', () => {
       expect(rawHtml).toContain('Generated through the daemon run path.');
 
       await suite.report.json('summary.json', {
-        assistantMessageId,
+        assistantMessageId: assistant.id,
         conversationId: project.conversationId,
         file: persistedFile,
         listedMessage: assistant,
         listedFiles: fileListResponse.files,
         projectId: project.project.id,
         rawHtml,
-        run: finalRun,
+        runId,
       });
     });
   }, 180_000);
@@ -196,4 +181,86 @@ function assertAssistantMessage(
   value: E2eChatMessage | undefined,
 ): asserts value is E2eChatMessage {
   expect(value, 'assistant message should exist').toBeDefined();
+}
+
+async function expectWorkspaceReady(page: Page) {
+  await waitForLoadingToClear(page);
+  const privacyDialog = page.getByRole('region', { name: 'Help us improve Open Design' });
+  if (await privacyDialog.isVisible().catch(() => false)) {
+    await privacyDialog.getByRole('button', { name: /don't share|not now/i }).click();
+    await playwrightExpect(privacyDialog).toHaveCount(0);
+  }
+  await playwrightExpect(page).toHaveURL(/\/projects\//);
+  await playwrightExpect(page.getByTestId('chat-composer')).toBeVisible();
+  await playwrightExpect(page.getByTestId('chat-composer-input')).toBeVisible();
+  await playwrightExpect(page.getByTestId('file-workspace')).toBeVisible();
+}
+
+async function waitForLoadingToClear(page: Page) {
+  const loading = page.getByText('Loading Open Design…');
+  await loading.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
+}
+
+async function sendPrompt(page: Page, prompt: string) {
+  const input = page.getByTestId('chat-composer-input');
+  const sendButton = page.getByTestId('chat-send');
+  await playwrightExpect(input).toBeVisible({ timeout: 5_000 });
+  await input.click();
+  await input.fill(prompt);
+  await playwrightExpect(input).toHaveValue(prompt);
+  await playwrightExpect(sendButton).toBeEnabled();
+  const responsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/runs' && response.request().method() === 'POST';
+  }, { timeout: 10_000 });
+  await sendButton.click();
+  const response = await responsePromise;
+  expect(response.ok()).toBe(true);
+  return response;
+}
+
+async function waitForProjectFile(
+  webUrl: string,
+  projectId: string,
+  fileName: string,
+): Promise<ProjectFile> {
+  let latest: ProjectFile[] = [];
+  await expect.poll(async () => {
+    const response = await requestJson<{ files: ProjectFile[] }>(
+      webUrl,
+      `/api/projects/${encodeURIComponent(projectId)}/files`,
+    );
+    latest = response.files;
+    return response.files.some((file) => file.name === fileName);
+  }, { timeout: 30_000 }).toBe(true);
+
+  const file = latest.find((candidate) => candidate.name === fileName);
+  if (!file) throw new Error(`project file ${fileName} did not remain listed`);
+  return file;
+}
+
+async function waitForFinishedAssistantMessage(
+  webUrl: string,
+  projectId: string,
+  conversationId: string,
+  runId: string,
+): Promise<E2eChatMessage | undefined> {
+  let latest: E2eChatMessage[] = [];
+  await expect.poll(async () => {
+    latest = await listMessages(webUrl, projectId, conversationId);
+    const assistant = latest.find((message) => message.role === 'assistant' && message.runId === runId);
+    return {
+      producedFileNames: assistant?.producedFiles?.map((file) =>
+        typeof file === 'object' && file !== null && 'name' in file
+          ? String(file.name)
+          : '',
+      ) ?? [],
+      runStatus: assistant?.runStatus ?? 'missing',
+    };
+  }, { timeout: 30_000 }).toEqual({
+    producedFileNames: [FILE_NAME],
+    runStatus: 'succeeded',
+  });
+
+  return latest.find((message) => message.role === 'assistant' && message.runId === runId);
 }

@@ -1832,6 +1832,7 @@ export function ProjectView({
       const beforeFileNames = new Set(projectFiles.map((f) => f.name));
 
       const parser = createArtifactParser();
+      let parsedArtifact: Artifact | null = null;
       let liveHtml = '';
       let streamedText = '';
 
@@ -1908,14 +1909,22 @@ export function ProjectView({
         for (const ev of parser.feed(delta)) {
           if (ev.type === 'artifact:start') {
             liveHtml = '';
-            setArtifact({
+            parsedArtifact = {
               identifier: ev.identifier,
               artifactType: ev.artifactType,
               title: ev.title,
               html: '',
-            });
+            };
+            setArtifact(parsedArtifact);
           } else if (ev.type === 'artifact:chunk') {
             liveHtml += ev.delta;
+            parsedArtifact = parsedArtifact
+              ? { ...parsedArtifact, html: liveHtml }
+              : {
+                  identifier: ev.identifier,
+                  title: '',
+                  html: liveHtml,
+                };
             setArtifact((prev) =>
               prev
                 ? { ...prev, html: liveHtml }
@@ -1926,6 +1935,13 @@ export function ProjectView({
                   },
             );
           } else if (ev.type === 'artifact:end') {
+            parsedArtifact = parsedArtifact
+              ? { ...parsedArtifact, html: ev.fullContent }
+              : {
+                  identifier: ev.identifier,
+                  title: '',
+                  html: ev.fullContent,
+                };
             setArtifact((prev) => (prev ? { ...prev, html: ev.fullContent } : null));
           }
         }
@@ -1957,6 +1973,13 @@ export function ProjectView({
           cancelSendTextBuffer();
           for (const ev of parser.flush()) {
             if (ev.type === 'artifact:end') {
+              parsedArtifact = parsedArtifact
+                ? { ...parsedArtifact, html: ev.fullContent }
+                : {
+                    identifier: ev.identifier,
+                    title: '',
+                    html: ev.fullContent,
+                  };
               setArtifact((prev) => (prev ? { ...prev, html: ev.fullContent } : null));
             }
           }
@@ -2009,18 +2032,16 @@ export function ProjectView({
           clearActiveRunRefs(runConversationId, controller, cancelController);
           clearStreamingMarker(runConversationId);
           updateConversationLatestRun(finalRunStatus ?? 'succeeded', endedAt);
-          // Persist the finished artifact to the project folder so it shows
-          // up as a real tab (not just the synthetic "live" stream).
-          setArtifact((prev) => {
-            if (!prev || !prev.html) return prev;
-            void refreshProjectFiles().then((nextFiles) => persistArtifact(prev, nextFiles));
-            return prev;
-          });
           // Refetch the file list directly (rather than just bumping the
           // refresh signal) so we can diff against the pre-turn snapshot
           // and attach the new files to the assistant message as download
           // chips.
-          void refreshProjectFiles().then(async (nextFiles) => {
+          void (async () => {
+            let nextFiles = await refreshProjectFiles();
+            if (parsedArtifact?.html) {
+              await persistArtifact(parsedArtifact, nextFiles);
+              nextFiles = await refreshProjectFiles();
+            }
             const produced = nextFiles.filter((f) => !beforeFileNames.has(f.name));
             setMessages((curr) => {
               const updated = curr.map((m) =>
@@ -2033,7 +2054,7 @@ export function ProjectView({
               return updated;
             });
             await auditDesignSystemWorkspaceAfterRun(assistantId);
-          });
+          })();
           onProjectsRefresh();
         },
         onError: (err: Error) => {
