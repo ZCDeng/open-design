@@ -50,12 +50,31 @@ describe('discovery.ts task-type form (single-shot brief)', () => {
 
   it('forbids the agent from emitting a second Quick brief form after task-type answers', () => {
     // The whole point of the consolidation: once turn 1's task-type form is
-    // answered, turn 2 must go straight to brand handling / planning. A regex
-    // is brittle so check for the explicit no-second-form sentence the prompt
-    // ships with.
+    // answered, turn 2 must go straight to brand handling / planning.
     expect(DISCOVERY_AND_PHILOSOPHY).toMatch(
-      /do NOT emit a second `<question-form id="discovery">` \/ "Quick brief — 30 seconds" form/,
+      /do NOT emit any second `<question-form>` for that turn/,
     );
+  });
+
+  it('forbids tailored "X brief" variants that re-ask the discovery questions', () => {
+    // The first revision of the consolidation only banned id="discovery" /
+    // "Quick brief — 30 seconds" by literal token, so the agent worked around
+    // it with names like `id="migration-brief"` / "Migration prototype brief".
+    // The prompt now enumerates the workaround surface so a single literal
+    // ban isn't the only line of defence.
+    expect(DISCOVERY_AND_PHILOSOPHY).toMatch(/Any `id="\*-brief"` form/);
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain('"X prototype brief"');
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain('Migration brief');
+  });
+
+  it('allows one inline plain-prose follow-up but forbids batched question cards', () => {
+    // Escape hatch so the agent can still ask one genuinely-uninferrable
+    // critical question (e.g. a repo URL the user forgot to include) without
+    // resurrecting the two-card flow. The ban targets card-shaped follow-ups
+    // specifically, not all clarification.
+    expect(DISCOVERY_AND_PHILOSOPHY).toMatch(/ask \*\*one\*\* concise inline follow-up in plain prose/);
+    expect(DISCOVERY_AND_PHILOSOPHY).toMatch(/NOT a `<question-form>` card/);
+    expect(DISCOVERY_AND_PHILOSOPHY).toMatch(/never batch multiple questions/);
   });
 
   it('teaches RULE 2 to accept the task-type answer marker alongside discovery', () => {
