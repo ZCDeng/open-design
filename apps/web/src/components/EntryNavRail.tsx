@@ -12,7 +12,6 @@
 import type { ReactNode } from 'react';
 import { EntryHelpMenu } from './EntryHelpMenu';
 import { Icon } from './Icon';
-import { UpdaterPopup } from './UpdaterPopup';
 import { useT } from '../i18n';
 
 export type EntryView =
@@ -77,7 +76,6 @@ export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
             draggable={false}
           />
         </button>
-        <UpdaterPopup />
         <NavButton
           ariaLabel={t('entry.navNewProject')}
           tooltip={t('entry.navNewProject')}

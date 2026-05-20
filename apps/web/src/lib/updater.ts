@@ -66,8 +66,8 @@ function downloadProgressFromStatus(
   status: OpenDesignHostUpdaterStatusSnapshot | null,
 ): UpdaterDownloadProgress | null {
   if (status == null) return null;
+  if (status.state !== OPEN_DESIGN_HOST_UPDATER_STATES.DOWNLOADING) return null;
   const sourceProgress = status.incoming?.progress ?? status.progress;
-  if (sourceProgress == null && status.state !== OPEN_DESIGN_HOST_UPDATER_STATES.DOWNLOADING) return null;
 
   const receivedBytes = Math.max(0, sourceProgress?.receivedBytes ?? 0);
   const totalBytes =
@@ -121,12 +121,7 @@ export function deriveUpdaterModel(
     hostAvailable &&
     status?.enabled &&
     status.supported &&
-    (busy ||
-      downloadProgress != null ||
-      availableVersion != null ||
-      hasDownloadedInstaller ||
-      installerOpened ||
-      status.error != null),
+    (hasDownloadedInstaller || installerOpened),
   );
 
   return {

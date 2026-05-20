@@ -82,6 +82,7 @@ import { KNOWN_PROVIDERS } from '../state/config';
 import type { KnownProvider } from '../state/config';
 import { testApiProvider } from '../providers/connection-test';
 import { fetchProviderModels } from '../providers/provider-models';
+import { UpdaterPopup } from './UpdaterPopup';
 
 // The topbar chips (GitHub star, model switcher, Use everywhere)
 // collapse into the settings dropdown when the viewport gets
@@ -875,6 +876,7 @@ export function EntryShell({
                 </span>
               </button>
             </div>
+            <UpdaterPopup />
             {avatarMenu}
           </div>
           <div
