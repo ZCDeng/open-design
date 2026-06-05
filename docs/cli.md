@@ -112,7 +112,7 @@ od plugin replay <runId> --snapshot-id <snapId>
 
 ---
 
-## 5. Project, files, conversations
+## 5. Project, files, templates
 
 ```bash
 # Create a new project pre-wired to a design system + skill + plugin.
@@ -133,11 +133,47 @@ od artifacts create --name docs/notes.md --input ./notes.md --project <projectId
 # Manage live artifacts (the ones the chat panel renders in real time).
 od tools live-artifacts list --project <projectId>
 od tools live-artifacts refresh --id <artifactId>
+
+# Read / write a project's working files directly.
+od files list <projectId>
+od files read <projectId> index.html > ./local-copy.html
+od files write <projectId> notes/brief.md < ./brief.md
+od files upload <projectId> ./hero.png --as assets/hero.png
+
+# Snapshot a finished project as a reusable template — mirrors
+# New Project → Templates (POST/GET/DELETE /api/templates).
+od templates save <projectId> --name "Card layout v2" --description "Validated baseline"
+od templates list --json
+od templates delete <templateId>
 ```
 
 ---
 
-## 6. Headless automations (Routines)
+## 6. Drive a code-agent run headlessly
+
+`od run` submits a prompt to a project and lets any installed agent runtime (`claude`, `codex`, `gemini`, `pi`, …) author the result — the same `/api/runs` flow the chat panel uses.
+
+```bash
+# Start a run; --json returns { apply, run } with the run id inside.
+RUN_ID=$(od run start --project <projectId> --agent claude \
+  --message "Build a 6-frame product teaser" --json | jq -r .run.runId)
+
+# Stream the normalized {event,data} ND-JSON until `event: end`.
+od run watch "$RUN_ID"
+
+# Or stream inline from the start.
+od run start --project <projectId> --agent codex --message "..." --follow
+
+od run cancel "$RUN_ID"
+od run list --project <projectId>
+od run info "$RUN_ID"
+```
+
+Long prompts: `--prompt-file <path|->` (see `od run redesign --help` for the folder-redesign variant). If the agent raises an interactive prompt mid-run (form, choice, `AskUserQuestion`), it parks in the GenUI surface — read and answer it with `od ui list --run "$RUN_ID"` / `od ui respond` (section 8).
+
+---
+
+## 7. Headless automations (Routines)
 
 ```bash
 # Schedule a weekly run that creates a fresh project each time.
@@ -173,7 +209,7 @@ Schedule grammar: `hourly:<minute>` · `daily:HH:MM[:TZ]` · `weekdays:HH:MM[:TZ
 
 ---
 
-## 7. Inspect & answer GenUI surfaces headlessly
+## 8. Inspect & answer GenUI surfaces headlessly
 
 When a plugin asks for input (form, choice, confirmation, OAuth prompt), it surfaces in the UI as a card. Headless agents read and respond:
 
@@ -194,7 +230,7 @@ od ui prefill <promptId> --payload '{"team":"design"}'
 
 ---
 
-## 8. Edit the memory tree
+## 9. Edit the memory tree
 
 The memory tree is the structured context injected into agent prompts (project knowledge, prior decisions). The CLI exposes the same edits the UI's Memory panel does.
 
@@ -207,7 +243,7 @@ od memory tree move <nodeId> --parent <newParentId>
 
 ---
 
-## 9. Wire `od` into another repo's coding agent (MCP)
+## 10. Wire `od` into another repo's coding agent (MCP)
 
 `od mcp` is a stdio MCP server. Drop it into any MCP-aware editor (Claude Code, Cursor, VS Code, Zed, Windsurf) and that agent can read files from a local Open Design project + create project-scoped artifacts without exporting a zip.
 
@@ -230,7 +266,7 @@ od mcp live-artifacts
 
 ---
 
-## 10. Connectors (GitHub, Figma, Notion, …)
+## 11. Connectors (GitHub, Figma, Notion, …)
 
 ```bash
 # List configured connectors + their auth state.
@@ -245,7 +281,7 @@ od tools connectors github-design-context --repo owner/name
 
 ---
 
-## 11. Read design-system pull-layer files
+## 12. Read design-system pull-layer files
 
 Useful inside a skill: fetch the active design-system's `DESIGN.md`, tokens, components.
 
@@ -257,7 +293,7 @@ od tools design-systems read --path DESIGN.md
 
 ---
 
-## 12. Quick research (Tavily-backed)
+## 13. Quick research (Tavily-backed)
 
 ```bash
 od research search --query "macOS menu-bar tray patterns 2025" --max-sources 5
@@ -267,7 +303,7 @@ Returns a normalized list of `{title, url, content}`. Designed to be called from
 
 ---
 
-## 13. Export diagnostics for a support ticket
+## 14. Export diagnostics for a support ticket
 
 ```bash
 # Same output as Settings → About → Export diagnostics.
@@ -279,7 +315,7 @@ od diagnostics export --json
 
 ---
 
-## 14. Recipe: full agent loop in a fresh shell
+## 15. Recipe: full agent loop in a fresh shell
 
 A complete "create project → apply plugin → fetch artifact" loop, no UI:
 
@@ -301,7 +337,7 @@ od tools live-artifacts list --project "$PROJECT" --json | jq -r '.[0].name'
 
 ---
 
-## 15. Notes for agent runtimes
+## 16. Notes for agent runtimes
 
 When a skill or plugin shells out to `od`, prefer the explicit form so PATH lookups don't cost a turn:
 
@@ -314,11 +350,10 @@ The daemon injects both env vars on spawn. `OD_DAEMON_URL` and `OD_PROJECT_ID` c
 
 ---
 
-## 16. What's not in the CLI yet
+## 17. What's not in the CLI yet
 
 Verified gaps as of this writing — if you reach for one of these, the answer today is "go through the API or UI":
 
-- **Tail a single run's events** — no `od runs tail <id> --follow` yet. Closest workaround: `od plugin events tail -f` for plugin runs, or hit `/api/runs/:id/events` directly.
 - **Batch plugin apply** — no `--inputs-from <jsonl>`. Loop in shell for now.
 - **Remote daemon auth model** — the CLI assumes loopback or a trusted bind. There is no `od config remote add` for shared daemons.
 - **Cookbook for `od marketplace`** — surface exists but is fast-moving; rely on `od marketplace --help`.
