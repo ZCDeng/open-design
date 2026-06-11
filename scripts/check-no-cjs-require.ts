@@ -72,6 +72,12 @@ function declaresRequireBinding(sourceFile: ts.SourceFile): boolean {
  * (`ERR_AMBIGUOUS_MODULE_SYNTAX` / `require is not defined`) or — wrapped in
  * try/catch — fails silently. Files that bind `require` themselves via
  * `node:module` `createRequire` are exempt.
+ *
+ * The exemption is file-scoped, not binding-scoped: a `require` binding
+ * anywhere in the file exempts every call in it, including a bare module-level
+ * `require()` the binding does not actually shadow. Scope-accurate resolution
+ * needs the type checker; the ESM runtime still rejects such a call, so this
+ * check accepts the false negative.
  */
 export function collectBareRequireCalls(repositoryPath: string, sourceText: string): CjsRequireViolation[] {
   // Cheap prefilter: parsing is only needed when the token appears at all.

@@ -35,6 +35,21 @@ test("allows require bound via node:module createRequire", () => {
   assert.deepEqual(collectBareRequireCalls("apps/x/src/a.ts", source), []);
 });
 
+test("known limitation: a require binding anywhere exempts the whole file", () => {
+  // The function-scoped createRequire binding does not shadow the module-level
+  // call, yet the file-scoped exemption skips it. Documented trade-off in the
+  // collectBareRequireCalls docblock; the ESM runtime is the backstop.
+  const source = [
+    "import { createRequire } from 'node:module';",
+    "function legacy() {",
+    "  const require = createRequire(import.meta.url);",
+    "  return require('./package.json');",
+    "}",
+    "const fs = require('node:fs');",
+  ].join("\n");
+  assert.deepEqual(collectBareRequireCalls("apps/x/src/a.ts", source), []);
+});
+
 test("allows a parameter named require", () => {
   const source = "export function load(require: (id: string) => unknown) { return require('x'); }\n";
   assert.deepEqual(collectBareRequireCalls("apps/x/src/a.ts", source), []);
